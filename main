@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+
+import numpy as np
+from numpy import genfromtxt
+from typing import Mapping, List
+
+
+def get_clean_data(filename: str) -> np.ndarray:
+    data = genfromtxt(filename, delimiter=',', dtype=None,
+                      encoding=None, skip_header=1)
+    print(f"Dataset from {data[0][0]} to {data[-1][0]}")
+    print(f"Got {len(data)} entries")
+    data = np.delete(data, 0, 1)
+    return data
+
+
+def get_tags(data: np.ndarray) -> List:
+    return sorted(list(set(data.flatten())))
+
+
+def calculate_global_rates(data: np.ndarray) -> Mapping[str, float]:
+    """Gets the global rate for each tag, assuming they are independent"""
+    tags = get_tags(data)
+    rates = {}
+    for tag in tags:
+        rates[tag] = len([i for i in data if tag in i]) / len(data)
+
+    return rates
+
+
+def calculate_tag_a_times_b(
+    global_data: Mapping[str, float]
+) -> Mapping[str, Mapping[str, float]]:
+    rates = {}
+    for tag in global_data.keys():
+        rates[tag] = {}
+        for tag_i in global_data.keys():
+            rates[tag][tag_i] = global_data[tag] * global_data[tag_i]
+
+    return rates
+
+
+def calculate_tag_a_and_b(
+    raw_data: np.ndarray
+) -> Mapping[str, Mapping[str, float]]:
+    tags = get_tags(raw_data)
+    total_rows = len(raw_data)
+    ret_data = {}
+    for tag in tags:
+        ret_data[tag] = {}
+        for tag_i in tags:
+            ret_data[tag][tag_i] = len(
+                [row for row in raw_data if tag in row and tag_i in row]) / total_rows
+
+    return ret_data
+
+
+def calculate_independence_delta(
+    tag_a_times_b: Mapping[str, Mapping[str, float]],
+    tag_a_and_b: Mapping[str, Mapping[str, float]]
+) -> Mapping[str, Mapping[str, float]]:
+    ret_data = {}
+
+    for tag, cond_map in tag_a_times_b.items():
+        ret_data[tag] = {}
+        for cond_tag in cond_map.keys():
+            ret_data[tag][cond_tag] = tag_a_times_b[tag][cond_tag] - \
+                tag_a_and_b[tag][cond_tag]
+    return ret_data
+
+
+def print_tag_matrix(
+    data: Mapping[str, Mapping[str, float]],
+    output_csv=True
+) -> str:
+    tag_order = data.keys()
+    col_size = max(map(lambda t: len(t), tag_order))
+    spacer_size = 2
+    column_spacer = "," if output_csv else " " * spacer_size
+    ret_str = ""
+
+    if not output_csv:
+        ret_str += " " * col_size
+    ret_str += column_spacer
+
+    def print_tag(tag):
+        nonlocal ret_str
+        if output_csv:
+            ret_str += tag + column_spacer
+        else:
+            ret_str += f"{tag:>{col_size}}" + column_spacer
+
+    for tag in tag_order:
+        print_tag(tag)
+    ret_str += "\n"
+
+    for tag in tag_order:
+        print_tag(tag)
+        for tag_i in tag_order:
+            entry = data[tag][tag_i]
+            if output_csv:
+                ret_str += str(entry) + column_spacer
+            else:
+                ret_str += f"{entry:>+.{col_size - 3}f}" + \
+                    column_spacer
+        ret_str += "\n"
+
+    return ret_str
+
+
+def write_file(
+    filename: str,
+    data: Mapping[str, Mapping[str, float]],
+    is_csv=True
+) -> None:
+    if is_csv:
+        filename += ".csv"
+    else:
+        filename += ".txt"
+    with open(filename, "w") as f:
+        f.writelines(print_tag_matrix(data, is_csv))
+
+
+if __name__ == "__main__":
+    data = get_clean_data("form_responses.csv")
+
+    tags = get_tags(data)
+    expected_tags = 28
+    if len(tags) != expected_tags:
+        print(f"Warning, expected {expected_tags}, got {len(tags)} instead!")
+
+    global_rates = calculate_global_rates(data)
+    tag_a_times_b = calculate_tag_a_times_b(global_rates)
+    tag_a_and_b = calculate_tag_a_and_b(data)
+
+    delta_chart = calculate_independence_delta(tag_a_times_b, tag_a_and_b)
+
+    print_csv = False
+    write_file("tag_a_times_b_data", tag_a_times_b, print_csv)
+    write_file("tag_a_and_b_data", tag_a_and_b, print_csv)
+    write_file("independence_delta_data", delta_chart, print_csv)
