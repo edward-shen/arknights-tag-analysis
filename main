@@ -6,6 +6,7 @@ from typing import Mapping, List
 
 
 def get_clean_data(filename: str) -> np.ndarray:
+    """Reads and extracts meaningful data from the raw csv"""
     data = genfromtxt(filename, delimiter=',', dtype=None,
                       encoding=None, skip_header=1)
     print(f"Dataset from {data[0][0]} to {data[-1][0]}")
@@ -31,6 +32,11 @@ def calculate_global_rates(data: np.ndarray) -> Mapping[str, float]:
 def calculate_tag_a_times_b(
     global_data: Mapping[str, float]
 ) -> Mapping[str, Mapping[str, float]]:
+    """
+    For any two tags A and B, calculate the probability that that any roll
+    contains both A and B, given the distribution provided and under the
+    assumption that tags A and B are independent.
+    """
     rates = {}
     for tag in global_data.keys():
         rates[tag] = {}
@@ -43,6 +49,10 @@ def calculate_tag_a_times_b(
 def calculate_tag_a_and_b(
     raw_data: np.ndarray
 ) -> Mapping[str, Mapping[str, float]]:
+    """
+    For any two tags A and B, calculate the probability that any roll has
+    both A and B from raw data.
+    """
     tags = get_tags(raw_data)
     total_rows = len(raw_data)
     ret_data = {}
@@ -59,6 +69,7 @@ def calculate_independence_delta(
     tag_a_times_b: Mapping[str, Mapping[str, float]],
     tag_a_and_b: Mapping[str, Mapping[str, float]]
 ) -> Mapping[str, Mapping[str, float]]:
+    """Returns the difference between the two datasets"""
     ret_data = {}
 
     for tag, cond_map in tag_a_times_b.items():
@@ -73,6 +84,10 @@ def print_tag_matrix(
     data: Mapping[str, Mapping[str, float]],
     output_csv=True
 ) -> str:
+    """
+    Because I can't be bothered to look up how to use the libraries to do this.
+    Prints a formatted table or csv file of the provided dataset.
+    """
     tag_order = data.keys()
     col_size = max(map(lambda t: len(t), tag_order))
     spacer_size = 2
@@ -113,6 +128,7 @@ def write_file(
     data: Mapping[str, Mapping[str, float]],
     is_csv=True
 ) -> None:
+    """Helper function to add extension while writing the datasets to file"""
     if is_csv:
         filename += ".csv"
     else:
