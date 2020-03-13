@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     delta_chart = calculate_independence_delta(tag_a_times_b, tag_a_and_b)
 
-    print_csv = False
+    print_csv = True
     write_file("tag_a_times_b_data", tag_a_times_b, print_csv)
     write_file("tag_a_and_b_data", tag_a_and_b, print_csv)
     write_file("independence_delta_data", delta_chart, print_csv)
